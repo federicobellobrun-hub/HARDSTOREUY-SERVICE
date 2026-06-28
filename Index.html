@@ -1,0 +1,49 @@
+<!doctype html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>HARDSTOREUY Service</title>
+  <?!= include('Styles'); ?>
+</head>
+<body>
+  <div id="app" class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <?!= include('Logo'); ?>
+        <div><strong>HARDSTOREUY</strong><span>Service v0.2</span></div>
+      </div>
+      <nav>
+        <button class="nav active" data-view="dashboard">Inicio</button>
+        <button class="nav" data-view="orders">Reparaciones</button>
+        <button class="nav primary" data-view="new">+ Nueva orden</button>
+      </nav>
+      <footer>HARDSTOREUY Service v0.2</footer>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageSubtitle">Control de reparaciones del taller</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn" onclick="refreshApp()">Actualizar</button>
+          <button class="btn primary" onclick="showView('new')">Nueva orden</button>
+        </div>
+      </header>
+
+      <?!= include('Dashboard'); ?>
+      <?!= include('NuevaOrden'); ?>
+      <?!= include('Ordenes'); ?>
+    </main>
+  </div>
+
+  <div id="detailModal" class="modal" onclick="closeModal(event)">
+    <div class="modal-card" id="orderDetail"></div>
+  </div>
+  <div id="toast"></div>
+  <?!= include('Script'); ?>
+</body>
+</html>

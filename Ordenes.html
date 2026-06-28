@@ -1,0 +1,10 @@
+<section id="orders" class="view">
+  <div class="card">
+    <div class="section-head"><div><h2>Reparaciones</h2><p>Busca, edita estados, imprime y abre WhatsApp.</p></div></div>
+    <div class="toolbar">
+      <input id="ordersSearch" class="input" placeholder="Buscar órdenes..." oninput="searchOrders(this.value,'ordersList')">
+      <button class="btn" onclick="document.getElementById('ordersSearch').value=''; searchOrders('', 'ordersList')">Limpiar</button>
+    </div>
+    <div id="ordersList" class="list"></div>
+  </div>
+</section>

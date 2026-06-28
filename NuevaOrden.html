@@ -1,0 +1,38 @@
+<section id="new" class="view">
+  <div class="card form-card">
+    <div class="section-head">
+      <div><h2>Nueva orden de reparación</h2><p>Completa los datos principales del cliente y del equipo.</p></div>
+    </div>
+
+    <form id="orderForm" onsubmit="submitOrder(event)">
+      <h3>Cliente</h3>
+      <div class="form-grid">
+        <input class="input" name="Cliente" placeholder="Nombre del cliente" required>
+        <input class="input" name="Telefono" placeholder="Teléfono / WhatsApp" required>
+      </div>
+
+      <h3>Equipo</h3>
+      <div class="form-grid">
+        <select name="Tipo" id="tipoSelect" required><option value="">Tipo de equipo</option></select>
+        <input class="input" name="Marca" placeholder="Marca" required>
+        <input class="input" name="Modelo" placeholder="Modelo" required>
+        <input class="input" name="SerieIMEI" placeholder="Serie / IMEI">
+        <input class="input" name="Accesorios" placeholder="Accesorios entregados">
+        <select name="Prioridad"><option>Normal</option><option>Alta</option><option>Urgente</option></select>
+      </div>
+
+      <h3>Trabajo</h3>
+      <div class="form-grid">
+        <textarea class="full" name="Problema" rows="4" placeholder="Problema reportado por el cliente" required></textarea>
+        <input class="input" name="Presupuesto" placeholder="Presupuesto estimado">
+        <select name="Tecnico" id="tecnicoSelect"><option value="">Técnico</option></select>
+        <textarea class="full" name="Observaciones" rows="3" placeholder="Observaciones internas"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn primary" type="submit">Guardar orden</button>
+        <button class="btn" type="reset">Limpiar</button>
+      </div>
+    </form>
+  </div>
+</section>

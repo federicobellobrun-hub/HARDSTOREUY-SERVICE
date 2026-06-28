@@ -1,0 +1,182 @@
+<script>
+const APP = { orders: [], statuses: [], types: [], technicians: [] };
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.nav').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
+  refreshApp();
+});
+
+function refreshApp(){
+  google.script.run
+    .withSuccessHandler(data => {
+      APP.statuses = data.statuses || [];
+      APP.types = data.types || [];
+      APP.technicians = data.technicians || [];
+      fillSelects();
+      renderStats(data.stats || {});
+      APP.orders = data.recent || [];
+      renderOrders(APP.orders, 'recentOrders');
+      renderOrders(APP.orders, 'ordersList');
+    })
+    .withFailureHandler(showError)
+    .apiInit();
+}
+
+function showView(id){
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.view === id));
+  document.getElementById('pageTitle').textContent = id === 'new' ? 'Nueva orden' : id === 'orders' ? 'Reparaciones' : 'Dashboard';
+  document.getElementById('pageSubtitle').textContent = id === 'new' ? 'Ingreso de equipo al taller' : id === 'orders' ? 'Listado y búsqueda de órdenes' : 'Control de reparaciones del taller';
+}
+
+function fillSelects(){
+  fillSelect('tipoSelect', APP.types, 'Tipo de equipo');
+  fillSelect('tecnicoSelect', APP.technicians, 'Técnico');
+}
+
+function fillSelect(id, values, placeholder){
+  const s = document.getElementById(id);
+  if(!s || s.dataset.ready) return;
+  s.innerHTML = `<option value="">${placeholder}</option>` + values.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
+  s.dataset.ready = '1';
+}
+
+function renderStats(s){
+  setText('statHoy', s.hoy || 0);
+  setText('statRecibido', s.recibido || 0);
+  setText('statReparando', s.reparando || 0);
+  setText('statEsperando', s.esperando || 0);
+  setText('statListo', s.listo || 0);
+  setText('statEntregado', s.entregado || 0);
+}
+
+function submitOrder(e){
+  e.preventDefault();
+  const data = Object.fromEntries(new FormData(e.target).entries());
+  google.script.run
+    .withSuccessHandler(res => {
+      toast('Orden creada: ' + res.id);
+      e.target.reset();
+      refreshApp();
+      showView('dashboard');
+    })
+    .withFailureHandler(showError)
+    .createOrder(data);
+}
+
+function searchOrders(q, target='recentOrders'){
+  google.script.run
+    .withSuccessHandler(list => {
+      renderOrders(list, target);
+      if(target === 'recentOrders') renderOrders(list, 'ordersList');
+    })
+    .withFailureHandler(showError)
+    .listOrders(q, 100);
+}
+
+function renderOrders(list, target){
+  const el = document.getElementById(target);
+  if(!el) return;
+  if(!list.length){ el.innerHTML = '<p>No hay reparaciones para mostrar.</p>'; return; }
+  el.innerHTML = list.map(o => `
+    <div class="order" onclick="openOrder('${escapeAttr(o.ID)}')">
+      <strong>${escapeHtml(o.ID)}</strong>
+      <div><b>${escapeHtml(o.Cliente)}</b><p>${escapeHtml(o.Tipo)} · ${escapeHtml(o.Marca)} ${escapeHtml(o.Modelo)}</p></div>
+      <span class="pill ${pillClass(o.Estado)}">${escapeHtml(o.Estado)}</span>
+      <span class="priority ${escapeAttr(o.Prioridad)}">${escapeHtml(o.Prioridad || 'Normal')}</span>
+      <small>${escapeHtml(o.FechaTexto || '')}</small>
+    </div>`).join('');
+}
+
+function openOrder(id){
+  google.script.run
+    .withSuccessHandler(o => {
+      document.getElementById('orderDetail').innerHTML = detailHTML(o);
+      document.getElementById('detailModal').classList.add('open');
+    })
+    .withFailureHandler(showError)
+    .getOrder(id);
+}
+
+function detailHTML(o){
+  const statusOptions = APP.statuses.map(s => `<option ${s === o.Estado ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+  const typeOptions = APP.types.map(s => `<option ${s === o.Tipo ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+  const techOptions = [''].concat(APP.technicians).map(s => `<option ${s === o.Tecnico ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
+  const history = (o.HistorialParsed || []).slice().reverse().map(h => `
+    <div class="timeline-item"><b>${escapeHtml(h.accion || '')}</b><p>${formatDate(h.fecha)} ${h.estado ? '· ' + escapeHtml(h.estado) : ''}</p></div>`).join('') || '<p>Sin historial.</p>';
+
+  return `<div class="detail-title">
+    <div><h2>${escapeHtml(o.ID)}</h2><p>${escapeHtml(o.FechaTexto || '')}</p></div>
+    <button class="btn print-hide" onclick="closeDetail()">Cerrar</button>
+  </div>
+
+  <div class="form-grid print-hide">
+    <input class="input" id="dCliente" value="${escapeAttr(o.Cliente)}" placeholder="Cliente">
+    <input class="input" id="dTelefono" value="${escapeAttr(o.Telefono)}" placeholder="Teléfono">
+    <select id="dTipo">${typeOptions}</select>
+    <input class="input" id="dMarca" value="${escapeAttr(o.Marca)}" placeholder="Marca">
+    <input class="input" id="dModelo" value="${escapeAttr(o.Modelo)}" placeholder="Modelo">
+    <input class="input" id="dSerieIMEI" value="${escapeAttr(o.SerieIMEI)}" placeholder="Serie / IMEI">
+    <select id="dEstado">${statusOptions}</select>
+    <input class="input" id="dPresupuesto" value="${escapeAttr(o.Presupuesto)}" placeholder="Presupuesto">
+    <select id="dTecnico">${techOptions}</select>
+    <select id="dPrioridad"><option ${o.Prioridad==='Normal'?'selected':''}>Normal</option><option ${o.Prioridad==='Alta'?'selected':''}>Alta</option><option ${o.Prioridad==='Urgente'?'selected':''}>Urgente</option></select>
+    <textarea class="full" id="dProblema" rows="3" placeholder="Problema">${escapeHtml(o.Problema)}</textarea>
+    <textarea class="full" id="dAccesorios" rows="2" placeholder="Accesorios">${escapeHtml(o.Accesorios)}</textarea>
+    <textarea class="full" id="dObservaciones" rows="3" placeholder="Observaciones">${escapeHtml(o.Observaciones)}</textarea>
+  </div>
+
+  <div class="actions print-hide">
+    <button class="btn primary" onclick="saveDetail('${escapeAttr(o.ID)}')">Guardar cambios</button>
+    <button class="btn" onclick="setQuickStatus('${escapeAttr(o.ID)}','Listo para retirar')">Marcar listo</button>
+    <button class="btn" onclick="setQuickStatus('${escapeAttr(o.ID)}','Entregado')">Entregado</button>
+    <button class="btn" onclick="printOrder()">Imprimir</button>
+    <button class="btn" onclick="openWhatsapp('${escapeAttr(o.ID)}')">WhatsApp listo</button>
+  </div>
+
+  <div class="card" style="margin-top:18px;box-shadow:none">
+    <h3>Historial</h3>
+    <div class="timeline">${history}</div>
+  </div>
+
+  <div class="print-card">
+    <h2>HARDSTOREUY</h2><p>Orden de reparación ${escapeHtml(o.ID)}</p>
+  </div>`;
+}
+
+function saveDetail(id){
+  const keys = ['Cliente','Telefono','Tipo','Marca','Modelo','SerieIMEI','Problema','Accesorios','Estado','Presupuesto','Tecnico','Observaciones','Prioridad'];
+  const data = {};
+  keys.forEach(k => data[k] = document.getElementById('d' + k).value);
+  google.script.run
+    .withSuccessHandler(() => { toast('Orden actualizada'); closeDetail(); refreshApp(); })
+    .withFailureHandler(showError)
+    .updateOrder(id, data);
+}
+
+function setQuickStatus(id, status){
+  google.script.run
+    .withSuccessHandler(() => { toast('Estado actualizado'); closeDetail(); refreshApp(); })
+    .withFailureHandler(showError)
+    .quickStatus(id, status);
+}
+
+function openWhatsapp(id){
+  google.script.run
+    .withSuccessHandler(url => window.open(url, '_blank'))
+    .withFailureHandler(showError)
+    .buildWhatsappLink(id);
+}
+
+function printOrder(){ window.print(); }
+function closeDetail(){ document.getElementById('detailModal').classList.remove('open'); }
+function closeModal(e){ if(e.target.id === 'detailModal') closeDetail(); }
+function pillClass(s){ return String(s || '').split(' ')[0].replace('No','No'); }
+function setText(id, value){ const el = document.getElementById(id); if(el) el.textContent = value; }
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show-toast'); setTimeout(()=>t.classList.remove('show-toast'),2600); }
+function showError(err){ toast('Error: ' + (err.message || err)); console.error(err); }
+function escapeHtml(s){ return String(s || '').replace(/[&<>'"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c])); }
+function escapeAttr(s){ return escapeHtml(s).replace(/`/g, '&#96;'); }
+function formatDate(iso){ if(!iso) return ''; try { return new Date(iso).toLocaleString('es-UY'); } catch(e){ return iso; } }
+</script>
