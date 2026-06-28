@@ -1,55 +1,74 @@
-# HARDSTOREUY Service v0.5
+# HARDSTOREUY Service v1.0
 
-Sistema web para control de reparaciones de HARDSTOREUY usando Google Apps Script + Google Sheets.
+Sistema web simple para gestionar reparaciones de HARDSTOREUY usando Google Apps Script + Google Sheets.
 
-## Novedades v0.5
+## Incluye
 
-- Pestañas automáticas en el mismo archivo de Google Sheets:
-  - `REPARACIONES`
-  - `CLIENTES`
-  - `HISTORIAL`
-  - `CONFIG`
+- Dashboard con estadísticas reales desde Google Sheets.
+- Alta de órdenes de reparación.
+- Listado y búsqueda de órdenes.
+- Edición de órdenes.
+- Estados con colores.
+- Historial básico de cambios.
 - Clientes automáticos por teléfono.
-- Al escribir un teléfono existente, completa nombre y dirección.
-- Filtro por estado en Dashboard y Reparaciones.
-- Eliminación de órdenes con confirmación.
-- Garantía en días.
-- Historial global de cambios.
-- WhatsApp de presupuesto y WhatsApp de equipo listo.
-- Mejor impresión de orden.
+- WhatsApp por enlace (`wa.me`) con formato para Uruguay.
+- Impresión básica de orden.
+- Estructura compatible con `clasp`.
 
-## Instalación rápida
+## Archivos principales
 
-1. Crea o abre una hoja de cálculo en Google Sheets.
-2. Ve a **Extensiones → Apps Script**.
-3. Copia estos archivos al proyecto Apps Script:
-   - `Code.gs`
-   - `Database.gs`
-   - `Utils.gs`
-   - `Index.html`
-   - `Dashboard.html`
-   - `NuevaOrden.html`
-   - `Ordenes.html`
-   - `Logo.html`
-   - `Styles.html`
-   - `Script.html`
-   - `appsscript.json`
-4. Ejecuta una vez `setupDatabase` desde Apps Script para crear las pestañas.
-5. Publica como **Implementar → Nueva implementación → Aplicación web**.
+- `Code.gs`: entrada de la app y API inicial.
+- `Database.gs`: base de datos en Google Sheets.
+- `Utils.gs`: estados, tipos de equipo, técnicos y WhatsApp.
+- `Index.html`: pantalla principal.
+- `Dashboard.html`: dashboard.
+- `NuevaOrden.html`: formulario de nueva orden.
+- `Ordenes.html`: listado de órdenes.
+- `Styles.html`: estilos visuales.
+- `Script.html`: lógica del frontend.
+- `appsscript.json`: configuración Apps Script.
 
-## Uso con clasp
+## Instalación rápida sin clasp
+
+1. Crea una nueva hoja de cálculo en Google Sheets.
+2. Ve a **Extensiones > Apps Script**.
+3. Crea los archivos con los mismos nombres del proyecto.
+4. Copia y pega el contenido de cada archivo.
+5. Ejecuta una vez la función `setupDatabase` desde Apps Script.
+6. Autoriza permisos.
+7. Publica en **Implementar > Nueva implementación > Aplicación web**.
+8. Configura:
+   - Ejecutar como: **Yo**.
+   - Quién tiene acceso: según prefieras.
+9. Copia el enlace de la app web y úsalo desde las PC del taller.
+
+## Instalación con clasp
 
 ```bash
 npm install
 clasp login
 clasp create --type sheets --title "HARDSTOREUY Service"
 clasp push
+clasp open
 ```
 
-Luego abre el proyecto en Apps Script y publica la aplicación web.
+Luego ejecuta `setupDatabase` y publica como aplicación web.
 
-## Próxima versión sugerida v0.6
+## Uso
 
+- Al crear una orden se genera un número tipo `HS-2026-000001`.
+- Si el teléfono ya existe, el sistema completa datos del cliente.
+- Al abrir una orden puedes editar, cambiar estado, imprimir o abrir WhatsApp.
+
+## WhatsApp
+
+Esta versión usa enlaces de WhatsApp (`https://wa.me/...`). No envía mensajes automáticos silenciosos todavía. Para envío automático real se integrará WhatsApp Business API en una versión posterior.
+
+## Próximas mejoras sugeridas
+
+- Integración WhatsApp Business API.
 - Fotos del equipo en Google Drive.
-- PDF de orden.
-- Etiqueta QR para pegar en el equipo.
+- PDF profesional de ingreso/entrega.
+- Stock de repuestos.
+- Caja diaria.
+- Portal de cliente con estado de reparación.
