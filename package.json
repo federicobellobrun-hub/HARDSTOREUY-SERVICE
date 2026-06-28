@@ -1,15 +1,15 @@
 {
   "name": "hardstoreuy-service",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "HARDSTOREUY Service - Google Apps Script + Google Sheets",
   "private": true,
   "scripts": {
     "login": "clasp login",
-    "create": "clasp create --type sheets --title "HARDSTOREUY Service" --rootDir .",
+    "create": "clasp create --type sheets --title \"HARDSTOREUY Service\" --rootDir .",
     "open": "clasp open",
     "push": "clasp push",
     "pull": "clasp pull",
-    "deploy": "clasp deploy --description "HARDSTOREUY Service""
+    "deploy": "clasp deploy --description \"HARDSTOREUY Service v0.4\""
   },
   "devDependencies": {
     "@google/clasp": "latest"

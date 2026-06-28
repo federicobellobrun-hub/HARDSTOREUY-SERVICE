@@ -1,5 +1,5 @@
 const APP_NAME = 'HARDSTOREUY Service';
-const APP_VERSION = 'v0.3-clasp';
+const APP_VERSION = 'v0.4';
 const SHEET_NAME = 'REPARACIONES';
 const CONFIG_SHEET = 'CONFIG';
 
