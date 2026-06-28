@@ -1,53 +1,55 @@
-# HARDSTOREUY Service v0.4
+# HARDSTOREUY Service v0.5
 
-Sistema web sencillo y profesional para controlar reparaciones del taller usando Google Apps Script + Google Sheets.
+Sistema web para control de reparaciones de HARDSTOREUY usando Google Apps Script + Google Sheets.
 
-## Qué incluye esta versión
+## Novedades v0.5
 
-- Dashboard con estadísticas reales desde Google Sheets.
-- Alta de órdenes con numeración automática: `HS-2026-000001`.
-- Búsqueda por cliente, teléfono, orden, marca, modelo o falla.
-- Edición básica de órdenes.
-- Estados rápidos: Recibido, Diagnóstico, Esperando repuesto, Reparando, Listo para retirar, Entregado y No reparable.
-- Historial automático por orden.
-- Botón de WhatsApp por enlace `wa.me` con formato para Uruguay.
-- Preparado para trabajar con `clasp` y GitHub.
+- Pestañas automáticas en el mismo archivo de Google Sheets:
+  - `REPARACIONES`
+  - `CLIENTES`
+  - `HISTORIAL`
+  - `CONFIG`
+- Clientes automáticos por teléfono.
+- Al escribir un teléfono existente, completa nombre y dirección.
+- Filtro por estado en Dashboard y Reparaciones.
+- Eliminación de órdenes con confirmación.
+- Garantía en días.
+- Historial global de cambios.
+- WhatsApp de presupuesto y WhatsApp de equipo listo.
+- Mejor impresión de orden.
 
-## Instalación con clasp
+## Instalación rápida
 
-1. Instala Node.js.
-2. En una terminal dentro de esta carpeta ejecuta:
+1. Crea o abre una hoja de cálculo en Google Sheets.
+2. Ve a **Extensiones → Apps Script**.
+3. Copia estos archivos al proyecto Apps Script:
+   - `Code.gs`
+   - `Database.gs`
+   - `Utils.gs`
+   - `Index.html`
+   - `Dashboard.html`
+   - `NuevaOrden.html`
+   - `Ordenes.html`
+   - `Logo.html`
+   - `Styles.html`
+   - `Script.html`
+   - `appsscript.json`
+4. Ejecuta una vez `setupDatabase` desde Apps Script para crear las pestañas.
+5. Publica como **Implementar → Nueva implementación → Aplicación web**.
+
+## Uso con clasp
 
 ```bash
 npm install
-npm run login
+clasp login
+clasp create --type sheets --title "HARDSTOREUY Service"
+clasp push
 ```
 
-3. Crea el proyecto en Apps Script:
+Luego abre el proyecto en Apps Script y publica la aplicación web.
 
-```bash
-npm run create
-```
+## Próxima versión sugerida v0.6
 
-4. Sube los archivos:
-
-```bash
-npm run push
-```
-
-5. Abre el proyecto:
-
-```bash
-npm run open
-```
-
-6. En Apps Script, ejecuta manualmente `setupDatabase` una vez y acepta permisos.
-7. Publica como aplicación web: **Deploy > New deployment > Web app**.
-
-## Uso
-
-Al crear la primera orden, el sistema crea automáticamente las pestañas necesarias dentro del Google Sheet asociado.
-
-## Nota sobre WhatsApp
-
-Esta versión abre WhatsApp Web / WhatsApp Business mediante enlace. La versión futura puede conectarse a la API oficial de WhatsApp Business si tienes el proveedor/API configurado.
+- Fotos del equipo en Google Drive.
+- PDF de orden.
+- Etiqueta QR para pegar en el equipo.

@@ -1,5 +1,5 @@
 <script>
-const APP = { orders: [], statuses: [], types: [], technicians: [] };
+const APP = { orders: [], statuses: [], types: [], technicians: [], priorities: [] };
 
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.nav').forEach(btn => btn.addEventListener('click', () => showView(btn.dataset.view)));
@@ -12,6 +12,7 @@ function refreshApp(){
       APP.statuses = data.statuses || [];
       APP.types = data.types || [];
       APP.technicians = data.technicians || [];
+      APP.priorities = data.priorities || [];
       fillSelects();
       renderStats(data.stats || {});
       APP.orders = data.recent || [];
@@ -27,12 +28,14 @@ function showView(id){
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.nav').forEach(n => n.classList.toggle('active', n.dataset.view === id));
   document.getElementById('pageTitle').textContent = id === 'new' ? 'Nueva orden' : id === 'orders' ? 'Reparaciones' : 'Dashboard';
-  document.getElementById('pageSubtitle').textContent = id === 'new' ? 'Ingreso de equipo al taller' : id === 'orders' ? 'Listado y búsqueda de órdenes' : 'Control de reparaciones del taller';
+  document.getElementById('pageSubtitle').textContent = id === 'new' ? 'Ingreso de equipo al taller' : id === 'orders' ? 'Listado, búsqueda y filtros de órdenes' : 'Control de reparaciones del taller';
 }
 
 function fillSelects(){
   fillSelect('tipoSelect', APP.types, 'Tipo de equipo');
   fillSelect('tecnicoSelect', APP.technicians, 'Técnico');
+  fillStatusFilter('dashboardStatusFilter');
+  fillStatusFilter('ordersStatusFilter');
 }
 
 function fillSelect(id, values, placeholder){
@@ -42,8 +45,16 @@ function fillSelect(id, values, placeholder){
   s.dataset.ready = '1';
 }
 
+function fillStatusFilter(id){
+  const s = document.getElementById(id);
+  if(!s || s.dataset.ready) return;
+  s.innerHTML = '<option value="">Todos los estados</option>' + APP.statuses.map(v => `<option value="${escapeAttr(v)}">${escapeHtml(v)}</option>`).join('');
+  s.dataset.ready = '1';
+}
+
 function renderStats(s){
   setText('statHoy', s.hoy || 0);
+  setText('statActivos', s.activos || 0);
   setText('statRecibido', s.recibido || 0);
   setText('statReparando', s.reparando || 0);
   setText('statEsperando', s.esperando || 0);
@@ -53,26 +64,58 @@ function renderStats(s){
 
 function submitOrder(e){
   e.preventDefault();
+  const btn = e.target.querySelector('button[type="submit"]');
+  btn.disabled = true;
+  btn.textContent = 'Guardando...';
   const data = Object.fromEntries(new FormData(e.target).entries());
   google.script.run
     .withSuccessHandler(res => {
       toast('Orden creada: ' + res.id);
       e.target.reset();
+      document.getElementById('clientHint').innerHTML = '';
+      btn.disabled = false;
+      btn.textContent = 'Guardar orden';
       refreshApp();
       showView('dashboard');
     })
-    .withFailureHandler(showError)
+    .withFailureHandler(err => { btn.disabled = false; btn.textContent = 'Guardar orden'; showError(err); })
     .createOrder(data);
 }
 
-function searchOrders(q, target='recentOrders'){
+function lookupClient(phone){
+  const hint = document.getElementById('clientHint');
+  if(!phone){ hint.innerHTML = ''; return; }
+  google.script.run
+    .withSuccessHandler(c => {
+      if(!c){ hint.innerHTML = '<span>Cliente nuevo</span>'; return; }
+      document.getElementById('Cliente').value = c.Cliente || '';
+      document.getElementById('Direccion').value = c.Direccion || '';
+      hint.innerHTML = `<span class="ok">Cliente existente: ${escapeHtml(c.Cliente)} · ${c.CantidadOrdenes || 1} orden(es) · Última: ${escapeHtml(c.UltimaOrden || '')}</span>`;
+    })
+    .withFailureHandler(showError)
+    .lookupClientByPhone(phone);
+}
+
+function searchOrders(q, target='recentOrders', status=''){
   google.script.run
     .withSuccessHandler(list => {
       renderOrders(list, target);
       if(target === 'recentOrders') renderOrders(list, 'ordersList');
     })
     .withFailureHandler(showError)
-    .listOrders(q, 100);
+    .listOrders(q, 100, status);
+}
+
+function clearDashboardSearch(){
+  document.getElementById('searchBox').value='';
+  document.getElementById('dashboardStatusFilter').value='';
+  searchOrders('','recentOrders','');
+}
+
+function clearOrdersSearch(){
+  document.getElementById('ordersSearch').value='';
+  document.getElementById('ordersStatusFilter').value='';
+  searchOrders('', 'ordersList','');
 }
 
 function renderOrders(list, target){
@@ -104,22 +147,33 @@ function detailHTML(o){
   const typeOptions = APP.types.map(s => `<option ${s === o.Tipo ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
   const techOptions = [''].concat(APP.technicians).map(s => `<option ${s === o.Tecnico ? 'selected' : ''}>${escapeHtml(s)}</option>`).join('');
   const history = (o.HistorialParsed || []).slice().reverse().map(h => `
-    <div class="timeline-item"><b>${escapeHtml(h.accion || '')}</b><p>${formatDate(h.fecha)} ${h.estado ? '· ' + escapeHtml(h.estado) : ''}</p></div>`).join('') || '<p>Sin historial.</p>';
+    <div class="timeline-item"><b>${escapeHtml(h.accion || '')}</b><p>${formatDate(h.fecha)} ${h.estado ? '· ' + escapeHtml(h.estado) : ''}${h.detalle ? ' · ' + escapeHtml(h.detalle) : ''}</p></div>`).join('') || '<p>Sin historial.</p>';
 
   return `<div class="detail-title">
     <div><h2>${escapeHtml(o.ID)}</h2><p>${escapeHtml(o.FechaTexto || '')}</p></div>
     <button class="btn print-hide" onclick="closeDetail()">Cerrar</button>
   </div>
 
+  <div class="print-summary">
+    <h2>HARDSTOREUY</h2>
+    <p>Orden de reparación: <b>${escapeHtml(o.ID)}</b></p>
+    <p>Cliente: ${escapeHtml(o.Cliente)} · Tel: ${escapeHtml(o.Telefono)}</p>
+    <p>Equipo: ${escapeHtml(o.Tipo)} ${escapeHtml(o.Marca)} ${escapeHtml(o.Modelo)}</p>
+    <p>Falla: ${escapeHtml(o.Problema)}</p>
+    <p>Estado: ${escapeHtml(o.Estado)}</p>
+  </div>
+
   <div class="form-grid print-hide">
     <input class="input" id="dCliente" value="${escapeAttr(o.Cliente)}" placeholder="Cliente">
     <input class="input" id="dTelefono" value="${escapeAttr(o.Telefono)}" placeholder="Teléfono">
+    <input class="input full" id="dDireccion" value="${escapeAttr(o.Direccion)}" placeholder="Dirección">
     <select id="dTipo">${typeOptions}</select>
     <input class="input" id="dMarca" value="${escapeAttr(o.Marca)}" placeholder="Marca">
     <input class="input" id="dModelo" value="${escapeAttr(o.Modelo)}" placeholder="Modelo">
     <input class="input" id="dSerieIMEI" value="${escapeAttr(o.SerieIMEI)}" placeholder="Serie / IMEI">
     <select id="dEstado">${statusOptions}</select>
     <input class="input" id="dPresupuesto" value="${escapeAttr(o.Presupuesto)}" placeholder="Presupuesto">
+    <input class="input" id="dGarantiaDias" value="${escapeAttr(o.GarantiaDias)}" placeholder="Garantía en días">
     <select id="dTecnico">${techOptions}</select>
     <select id="dPrioridad"><option ${o.Prioridad==='Normal'?'selected':''}>Normal</option><option ${o.Prioridad==='Alta'?'selected':''}>Alta</option><option ${o.Prioridad==='Urgente'?'selected':''}>Urgente</option></select>
     <textarea class="full" id="dProblema" rows="3" placeholder="Problema">${escapeHtml(o.Problema)}</textarea>
@@ -129,30 +183,37 @@ function detailHTML(o){
 
   <div class="actions print-hide">
     <button class="btn primary" onclick="saveDetail('${escapeAttr(o.ID)}')">Guardar cambios</button>
+    <button class="btn" onclick="setQuickStatus('${escapeAttr(o.ID)}','Diagnóstico')">Diagnóstico</button>
     <button class="btn" onclick="setQuickStatus('${escapeAttr(o.ID)}','Listo para retirar')">Marcar listo</button>
     <button class="btn" onclick="setQuickStatus('${escapeAttr(o.ID)}','Entregado')">Entregado</button>
     <button class="btn" onclick="printOrder()">Imprimir</button>
-    <button class="btn" onclick="openWhatsapp('${escapeAttr(o.ID)}')">WhatsApp listo</button>
+    <button class="btn" onclick="openWhatsapp('${escapeAttr(o.ID)}','ready')">WhatsApp listo</button>
+    <button class="btn" onclick="openWhatsapp('${escapeAttr(o.ID)}','budget')">WhatsApp presupuesto</button>
+    <button class="btn danger" onclick="deleteDetail('${escapeAttr(o.ID)}')">Eliminar</button>
   </div>
 
   <div class="card" style="margin-top:18px;box-shadow:none">
     <h3>Historial</h3>
     <div class="timeline">${history}</div>
-  </div>
-
-  <div class="print-card">
-    <h2>HARDSTOREUY</h2><p>Orden de reparación ${escapeHtml(o.ID)}</p>
   </div>`;
 }
 
 function saveDetail(id){
-  const keys = ['Cliente','Telefono','Tipo','Marca','Modelo','SerieIMEI','Problema','Accesorios','Estado','Presupuesto','Tecnico','Observaciones','Prioridad'];
+  const keys = ['Cliente','Telefono','Direccion','Tipo','Marca','Modelo','SerieIMEI','Problema','Accesorios','Estado','Presupuesto','Tecnico','Observaciones','Prioridad','GarantiaDias'];
   const data = {};
   keys.forEach(k => data[k] = document.getElementById('d' + k).value);
   google.script.run
     .withSuccessHandler(() => { toast('Orden actualizada'); closeDetail(); refreshApp(); })
     .withFailureHandler(showError)
     .updateOrder(id, data);
+}
+
+function deleteDetail(id){
+  if(!confirm('¿Eliminar la orden ' + id + '? Esta acción no se puede deshacer.')) return;
+  google.script.run
+    .withSuccessHandler(() => { toast('Orden eliminada'); closeDetail(); refreshApp(); })
+    .withFailureHandler(showError)
+    .deleteOrder(id);
 }
 
 function setQuickStatus(id, status){
@@ -162,11 +223,12 @@ function setQuickStatus(id, status){
     .quickStatus(id, status);
 }
 
-function openWhatsapp(id){
+function openWhatsapp(id, type){
+  const fn = type === 'budget' ? 'buildBudgetWhatsappLink' : 'buildWhatsappLink';
   google.script.run
     .withSuccessHandler(url => window.open(url, '_blank'))
     .withFailureHandler(showError)
-    .buildWhatsappLink(id);
+    [fn](id);
 }
 
 function printOrder(){ window.print(); }
